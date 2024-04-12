@@ -6,10 +6,11 @@ from tkinter import ttk
 import speech_recognition as sr
 import threading
 import random
-import pyttsx3
+from gtts import gTTS
+import os
 
 # Configure GenerativeAI
-genai.configure(api_key="your-api")
+genai.configure(api_key="your api")
 generation_config = {
     "temperature": 0.9,
     "top_p": 1,
@@ -29,35 +30,36 @@ model = genai.GenerativeModel(
 )
 convo = model.start_chat()
 
-# Text-to-speech engine initialization
-engine = pyttsx3.init()
-voices = engine.getProperty('voices')
-engine.setProperty('voice', voices[0].id)  # Choose a voice, you can change the index to select a different voice
-
 # Function to send message and receive response
 def send_message(event=None):
     user_message = user_input.get()
     chat_log.config(state=tk.NORMAL)
     chat_log.insert(tk.END, "You: " + user_message + "\n", "user")
-    try:
-        response = convo.send_message(user_message)
-        chat_log.insert(tk.END, "Nexiloop AI: " + response.text + "\n", "model")
-        speak(response.text)
-    except genai.StopCandidateException as e:
-        chat_log.insert(
-            tk.END, "Nexiloop AI: Conversation finished: " + e.finish_reason + "\n", "model"
-        )
-        speak("Conversation finished: " + e.finish_reason)
+    response_text = get_response(user_message)
+    chat_log.insert(tk.END, "Nexiloop AI: " + response_text + "\n", "model")
+    speak(response_text)
     chat_log.config(state=tk.DISABLED)
     user_input.delete(0, tk.END)
 
+# Function to get response from the AI
+def get_response(user_message):
+    user_message = user_message.lower()
+    if "who create you" in user_message or "who made you" in user_message:
+        return "I was created by Nexiloop AI and Mohamed Rayen."
+    elif "who are you" in user_message:
+        return "I am Nexiloop AI, trained by Nexiloop and Mohamed Rayen."
+    else:
+        try:
+            response = convo.send_message(user_message)
+            return response.text
+        except genai.StopCandidateException as e:
+            return "Conversation finished: " + e.finish_reason
 
 # Function to clear chat log
 def clear_chat():
     chat_log.config(state=tk.NORMAL)
     chat_log.delete(1.0, tk.END)
     chat_log.config(state=tk.DISABLED)
-
 
 # Function to save chat history to a file
 def save_chat():
@@ -67,7 +69,6 @@ def save_chat():
             chat_content = chat_log.get(1.0, tk.END)
             file.write(chat_content)
         mb.showinfo("Success", "Chat history saved successfully.")
-
 
 # Function to load chat history from a file
 def load_chat():
@@ -81,12 +82,10 @@ def load_chat():
             chat_log.config(state=tk.DISABLED)
         mb.showinfo("Success", "Chat history loaded successfully.")
 
-
 # Function to exit the application
 def exit_app():
     if mb.askyesno("Exit", "Are you sure you want to exit?"):
         root.destroy()
-
 
 # Function to change the chat theme
 def change_theme():
@@ -94,7 +93,6 @@ def change_theme():
     root.configure(bg=color)
     chat_log.config(bg=color)
     user_input.config(bg=color)
-
 
 # Function for voice input using SpeechRecognition library
 def voice_input():
@@ -115,13 +113,11 @@ def voice_input():
     except sr.RequestError as e:
         print("Could not request results from Google Speech Recognition service; {0}".format(e))
 
-
 # Function to suggest random emojis
 def suggest_emoji():
     emojis = ["😊", "🎉", "👍", "😂", "🤔", "😎", "🥳", "👏"]
     random_emoji = random.choice(emojis)
     user_input.insert(tk.END, random_emoji)
-
 
 # Function to generate a random joke
 def generate_joke():
@@ -137,12 +133,11 @@ def generate_joke():
     chat_log.insert(tk.END, "Nexiloop AI: " + random_joke + "\n", "model")
     speak(random_joke)
 
-
 # Function to make the AI speak
 def speak(text):
-    engine.say(text)
-    engine.runAndWait()
-
+    tts = gTTS(text=text, lang='en')
+    tts.save("temp.mp3")
+    os.system("mpg321 temp.mp3")
 
 # Initialize tkinter window
 root = tk.Tk()
@@ -208,5 +203,12 @@ joke_button.grid(row=7, column=0, columnspan=3, padx=10, pady=10, sticky="ew")
 # Credits Label
 credits_label = tk.Label(root, text="Powered by Nexiloop AI", fg="white", bg="#121212", font=("Helvetica", 10))
 credits_label.grid(row=8, column=0, columnspan=3, padx=20, pady=5, sticky="e")
+
+# Function to send message when "Enter" key is pressed
+def on_enter(event):
+    send_message()
+
+# Bind the "Enter" key to the send_message function
+root.bind("<Return>", on_enter)
 
 root.mainloop()
